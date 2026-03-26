@@ -1,0 +1,129 @@
+name: CI (Pull Requests)
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Frontend ────────────────────────────────────────────────────────────────
+  web-lint:
+    name: Web — Lint & type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: ESLint
+        run: npm run lint --workspace=apps/web
+
+      - name: TypeScript
+        run: npx tsc --noEmit --project apps/web/tsconfig.json
+
+  web-test:
+    name: Web — Unit tests (vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Run tests
+        run: npm run test --workspace=apps/web
+
+  # ── Backend ──────────────────────────────────────────────────────────────────
+  api-lint:
+    name: API — Ruff lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: apps/api/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r apps/api/requirements.txt ruff
+
+      - name: Ruff lint
+        run: ruff check apps/api/
+
+  api-test:
+    name: API — Integration tests (pytest)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: logia
+          POSTGRES_PASSWORD: logia_dev_password
+          POSTGRES_DB: logia_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            apps/api/requirements.txt
+            apps/api/requirements-test.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r apps/api/requirements.txt
+          pip install -r apps/api/requirements-test.txt
+
+      - name: Run migrations
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql+asyncpg://logia:logia_dev_password@localhost:5432/logia_test
+        run: alembic -c alembic/alembic.ini upgrade head
+
+      - name: Run tests
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql+asyncpg://logia:logia_dev_password@localhost:5432/logia_test
+          TEST_DATABASE_URL: postgresql+asyncpg://logia:logia_dev_password@localhost:5432/logia_test
+          JWT_SECRET: ci-test-secret-not-for-production
+          REDIS_URL: redis://localhost:6379
+          ENVIRONMENT: test
+        run: pytest --cov=app --cov-report=xml -q
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          file: apps/api/coverage.xml
+          flags: api

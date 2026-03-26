@@ -1,0 +1,124 @@
+version: "3.9"
+
+# Logia Business Community — full dev stack
+# Ports: API=8001, Web=3001, Postgres=5433, Redis=6380, pgAdmin=5051
+
+services:
+  # ── Infrastructure ────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: logia_community_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: logia
+      POSTGRES_PASSWORD: logia_dev_password
+      POSTGRES_DB: logia
+    ports:
+      - "5433:5432"
+    volumes:
+      - community_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U logia -d logia"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: logia_community_redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - community_redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: logia_community_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@logiabusiness.com.br
+      PGADMIN_DEFAULT_PASSWORD: pgadmin_dev_password
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5051:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - community_pgadmin_data:/var/lib/pgadmin
+
+  # ── Backend (FastAPI) ─────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: logia_community_api
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://logia:logia_dev_password@postgres:5432/logia
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev-secret-change-in-production
+      ALLOWED_ORIGINS: "http://localhost:3001,http://localhost:3000"
+      FRONTEND_URL: "http://localhost:3001"
+      ENVIRONMENT: development
+      DEBUG: "true"
+      # Optional — leave blank for local dev
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRICE_ID: ${STRIPE_PRICE_ID:-}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
+  # ── Frontend (Next.js) ────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8001
+        NEXT_PUBLIC_WS_URL: ws://localhost:8001/ws
+        NEXT_PUBLIC_MAPBOX_TOKEN: ${NEXT_PUBLIC_MAPBOX_TOKEN:-}
+        NEXT_PUBLIC_STRIPE_PRICE_DISPLAY: ${NEXT_PUBLIC_STRIPE_PRICE_DISPLAY:-R$ 97/mês}
+    container_name: logia_community_web
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://localhost:8001
+      NEXT_PUBLIC_WS_URL: ws://localhost:8001/ws
+      NEXT_PUBLIC_MAPBOX_TOKEN: ${NEXT_PUBLIC_MAPBOX_TOKEN:-}
+      NEXT_PUBLIC_STRIPE_PRICE_DISPLAY: ${NEXT_PUBLIC_STRIPE_PRICE_DISPLAY:-R$ 97/mês}
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  community_postgres_data:
+  community_redis_data:
+  community_pgadmin_data:
+
+networks:
+  default:
+    name: logia_community_network

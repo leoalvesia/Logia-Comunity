@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+
+@layer base {
+  :root {
+    /* Logia Brand Colors */
+    --color-primary: #FF6B2B;
+    --color-primary-dark: #E55A1C;
+    --color-secondary: #1A1A2E;
+    --color-accent: #4ECDC4;
+    --color-bg: #F8F9FA;
+    --color-surface: #FFFFFF;
+
+    /* shadcn/ui compatible CSS vars */
+    --background: 220 14% 96%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 19 100% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 43% 14%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 220 14% 93%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 177 56% 56%;
+    --accent-foreground: 240 43% 14%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 19 100% 58%;
+    --radius: 0.5rem;
+
+    /* Typography */
+    --font-inter: 'Inter', system-ui, sans-serif;
+    --font-plus-jakarta: 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+
+  .dark {
+    --background: 240 43% 8%;
+    --foreground: 0 0% 95%;
+    --card: 240 43% 12%;
+    --card-foreground: 0 0% 95%;
+    --muted: 240 43% 18%;
+    --muted-foreground: 215 16% 65%;
+    --border: 240 43% 20%;
+    --input: 240 43% 20%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+}
+
+/* Video.js custom theme */
+.video-js .vjs-big-play-button {
+  background-color: #FF6B2B;
+  border-color: #FF6B2B;
+  border-radius: 50%;
+}
+
+.video-js .vjs-control-bar {
+  background: linear-gradient(transparent, rgba(0,0,0,0.7));
+}
+
+/* TipTap editor styles */
+.ProseMirror {
+  outline: none;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: #adb5bd;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid #FF6B2B;
+  padding-left: 1rem;
+  margin-left: 0;
+  color: #6b7280;
+}
+
+.ProseMirror pre {
+  background: #1a1a2e;
+  color: #f8f9fa;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
