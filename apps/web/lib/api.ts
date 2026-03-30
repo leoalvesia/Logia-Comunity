@@ -173,7 +173,7 @@ export const postsApi = {
     }),
 
   deleteComment: (commentId: string) =>
-    apiFetch<void>(`/api/v1/comments/${commentId}`, { method: "DELETE" }),
+    apiFetch<void>(`/api/v1/posts/comments/${commentId}`, { method: "DELETE" }),
 };
 
 // ── Courses ───────────────────────────────────────────────────────────────────

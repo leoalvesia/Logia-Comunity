@@ -72,6 +72,7 @@ class CommentResponse(BaseModel):
     created_at: datetime
     parent_id: Optional[uuid.UUID] = None
     author: Optional[ProfilePublic] = None
+    replies: list["CommentResponse"] = []
 
 
 class ReactRequest(BaseModel):

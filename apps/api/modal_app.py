@@ -13,6 +13,9 @@ app = modal.App("logia-community")
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install_from_requirements("apps/api/requirements.txt")
+    .add_local_dir("apps/api", remote_path="/root/app", copy=True)
+    .run_commands("echo '/root' > /usr/local/lib/python3.11/site-packages/logia.pth")
+    .run_commands("python3 -c 'import app; print(\"BUILD OK:\", app.__file__)'")
 )
 
 
@@ -20,11 +23,17 @@ image = (
 @app.function(
     image=image,
     secrets=[modal.Secret.from_name("logia-secrets")],
-    min_containers=1,   # keep one container warm to avoid cold starts
+    min_containers=1,
     timeout=60,
 )
 @modal.asgi_app()
 def web():
+    import sys, os
+    print("RUNTIME sys.path:", sys.path[:4])
+    print("RUNTIME /root exists:", os.path.exists('/root'))
+    print("RUNTIME /root/app exists:", os.path.exists('/root/app'))
+    if os.path.exists('/root/app'):
+        print("RUNTIME /root/app contents:", os.listdir('/root/app')[:5])
     from app.main import app as fastapi_app
     return fastapi_app
 
