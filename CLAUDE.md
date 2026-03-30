@@ -195,19 +195,41 @@ Secrets necessários no GitHub:
 - `MODAL_TOKEN_ID` + `MODAL_TOKEN_SECRET` — via `modal token new`
 - `VERCEL_TOKEN` — nas configurações da conta Vercel
 
+## Critical production fixes (applied 2026-03-26)
+
+### Modal Python path
+`modal_app.py` uses `add_local_dir("apps/api", remote_path="/root/app", copy=True)` + a `.pth` file to put `/root` on sys.path so `from app.main import app` works at runtime. Do not remove these lines.
+
+### Supabase — use pooler URL (IPv4), not direct connection
+Modal containers do not support IPv6. Supabase's direct connection (`db.<ref>.supabase.co:5432`) resolves to IPv6 and will fail with `Network is unreachable`.
+
+**Always use the pooler URL:**
+```
+postgresql+asyncpg://postgres.<ref>:<password>@aws-1-sa-east-1.pooler.supabase.com:6543/postgres
+```
+
+`core/database.py` does NOT need `connect_args={"statement_cache_size": 0}`. The Supavisor pooler (port 6543) works correctly with asyncpg's default prepared statement cache. Setting `statement_cache_size=0` actually causes `DuplicatePreparedStatementError` because multiple pool connections try to create the same named statement on recycled server connections.
+
+### Admin user
+Created directly in DB: email `leoalvesia@gmail.com`, role `admin`, `is_paid=true`. Password hashed with bcrypt.
+
+### Migrations
+All 3 Alembic migrations were applied directly via Supabase SQL editor (not alembic CLI) due to Windows path issues. Do not re-run them — they are already applied.
+
 ## Environment variables
 
 See `apps/api/.env.example` for the full list. Summary:
 
 | Variable | Where | Notes |
 |---|---|---|
-| `DATABASE_URL` | Modal secret | `postgresql+asyncpg://...` (Supabase) |
+| `DATABASE_URL` | Modal secret | **Pooler URL:** `postgresql+asyncpg://postgres.<ref>:<pw>@aws-1-sa-east-1.pooler.supabase.com:6543/postgres` |
 | `REDIS_URL` | Modal secret | `rediss://...` (Upstash) |
 | `JWT_SECRET` | Modal secret | `openssl rand -hex 32` |
 | `STRIPE_SECRET_KEY` | Modal secret | `sk_live_...` |
 | `STRIPE_WEBHOOK_SECRET` | Modal secret | `whsec_...` |
 | `STRIPE_PRICE_ID` | Modal secret | monthly price ID |
 | `FRONTEND_URL` | Modal secret | Vercel deploy URL |
+| `ALLOWED_ORIGINS` | Modal secret | comma-separated; must include Vercel URL |
 | `RESEND_API_KEY` | Modal secret | optional; emails skipped if absent |
 | `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` | Modal secret | for storage |
 | `NEXT_PUBLIC_API_URL` | Vercel env | Modal app URL |
