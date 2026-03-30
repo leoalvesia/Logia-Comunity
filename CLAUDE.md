@@ -195,6 +195,25 @@ Secrets necessários no GitHub:
 - `MODAL_TOKEN_ID` + `MODAL_TOKEN_SECRET` — via `modal token new`
 - `VERCEL_TOKEN` — nas configurações da conta Vercel
 
+## Critical production fixes (applied 2026-03-30)
+
+### Delete comment URL mismatch (fixed)
+`postsApi.deleteComment` in `apps/web/lib/api.ts` must call `/api/v1/posts/comments/${id}`, NOT `/api/v1/comments/${id}`. The backend router uses prefix `/api/v1/posts`, so the full path is `/api/v1/posts/comments/{comment_id}`.
+
+### CommentResponse includes replies
+`CommentResponse` in `apps/api/schemas/post.py` must include `replies: list["CommentResponse"] = []` so nested replies are serialized. The backend uses `selectinload(Comment.replies)` but the schema was missing this field.
+
+### DuplicatePreparedStatementError — how to fix
+If login (or any DB endpoint) returns 500 with `DuplicatePreparedStatementError: prepared statement "__asyncpg_stmt_N__" already exists`, it means Supavisor server connections have stale prepared statements from a previous container. Fix via Supabase SQL editor:
+
+```sql
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE application_name = 'Supavisor' AND datname = 'postgres';
+```
+
+This terminates idle Supavisor connections, forcing fresh reconnections without stale statements. The root cause is usually deploying new containers while old ones still hold prepared statements in PgBouncer's server connection pool.
+
 ## Critical production fixes (applied 2026-03-26)
 
 ### Modal Python path
